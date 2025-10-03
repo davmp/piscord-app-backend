@@ -36,7 +36,7 @@ func (m *MongoService) Connect() error {
 	}
 
 	m.client = client
-	m.database = client.Database("chatservice")
+	m.database = client.Database("piscord")
 
 	m.createIndexes()
 
