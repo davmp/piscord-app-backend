@@ -66,10 +66,6 @@ func (m *MongoService) createIndexes() {
 	// Users collection indexes
 	usersCollection := m.GetCollection("users")
 	usersCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    map[string]interface{}{"email": 1},
-		Options: options.Index().SetUnique(true),
-	})
-	usersCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    map[string]interface{}{"username": 1},
 		Options: options.Index().SetUnique(true),
 	})

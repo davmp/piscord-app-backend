@@ -21,6 +21,7 @@ type UserResponse struct {
 	Username string             `json:"username"`
 	Picture  string             `json:"picture,omitempty"`
 	Bio      string             `json:"bio,omitempty"`
+	IsOnline bool               `json:"is_online"`
 }
 
 type UpdateUserRequest struct {
@@ -28,6 +29,12 @@ type UpdateUserRequest struct {
 	Password string `json:"password,omitempty" binding:"omitempty,min=6"`
 	Picture  string `json:"picture,omitempty"`
 	Bio      string `json:"bio,omitempty"`
+}
+
+type UserRegisterRequest struct {
+	Username string `json:"username" binding:"required,min=3,max=30"`
+	Password string `json:"password" binding:"required,min=6"`
+	Picture  string `json:"picture,omitempty"`
 }
 
 type AuthRequest struct {

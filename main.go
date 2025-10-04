@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"piscord-backend/config"
+	"piscord-backend/handlers"
+	"piscord-backend/middleware"
 	"piscord-backend/services"
 	"syscall"
 	"time"
@@ -29,6 +31,20 @@ func main() {
 	}()
 
 	router := gin.Default()
+
+	authHandler := handlers.NewAuthHandler(mongoService, cfg)
+
+	auth := router.Group("/api/auth")
+	{
+		auth.POST("/register", authHandler.Register)
+		auth.POST("/login", authHandler.Login)
+	}
+
+	api := router.Group("/api")
+	api.Use(middleware.AuthMiddleware())
+	{
+		api.GET("/profile", authHandler.Profile)
+	}
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})

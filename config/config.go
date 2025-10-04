@@ -7,16 +7,18 @@ import (
 )
 
 type Config struct {
-	Port     string
-	MongoURI string
+	Port      string
+	MongoURI  string
+	JWTSecret string
 }
 
 func Load() *Config {
 	godotenv.Load()
 
 	return &Config{
-		Port:     getEnv("PORT", ""),
-		MongoURI: getEnv("MONGO_URI", ""),
+		Port:      getEnv("PORT", ""),
+		MongoURI:  getEnv("MONGO_URI", ""),
+		JWTSecret: getEnv("JWT_SECRET", ""),
 	}
 }
 
