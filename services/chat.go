@@ -175,7 +175,7 @@ func (cs *ChatService) GetUserCurrentRoom(client *Client) string {
 	defer cs.Hub.mutex.RUnlock()
 
 	for roomID := range client.Rooms {
-		return roomID // Should only be one room
+		return roomID
 	}
 	return ""
 }
