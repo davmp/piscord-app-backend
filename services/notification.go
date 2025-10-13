@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"piscord-backend/models"
 	"strings"
 	"time"
@@ -154,13 +155,13 @@ func (ns *NotificationService) responseNotification(notification models.Notifica
 				}
 			}
 
-			notificationResponse.Title = "Nova mensagem de " + user.Username
-			notificationResponse.Link = "/chat/" + message.RoomID.Hex()
+			notificationResponse.Title = fmt.Sprintf("Nova mensagem de %s", user.Username)
+			notificationResponse.Link = fmt.Sprintf("/chat/%s", message.RoomID.Hex())
 			notificationResponse.Picture = user.Picture
 
 			var room models.Room
 			if err := ns.MongoService.GetCollection("rooms").FindOne(context.Background(), bson.M{"_id": message.RoomID}).Decode(&room); err == nil {
-				notificationResponse.Title = "Nova mensagem em " + room.Name
+				notificationResponse.Title = fmt.Sprintf("Nova mensagem em %s", room.Name)
 
 				var content string
 				if len(message.Content) > 50 {
@@ -168,24 +169,24 @@ func (ns *NotificationService) responseNotification(notification models.Notifica
 				} else {
 					content = strings.ReplaceAll(message.Content, "\n", " ")
 				}
-				notificationResponse.Content = user.Username + ": " + content
+				notificationResponse.Content = fmt.Sprintf("%s: %s", user.Username, content)
 			}
 		}
 	case models.NotificationTypeUserJoined:
 		var room models.Room
 		if err := ns.MongoService.GetCollection("rooms").FindOne(context.Background(), bson.M{"_id": notification.ObjectID}).Decode(&room); err == nil {
-			notificationResponse.Title = notification.Content + " entrou em " + room.Name
-			notificationResponse.Link = "/chat/" + room.ID.Hex()
+			notificationResponse.Title = fmt.Sprintf("%s entrou em %s", notification.Content, room.Name)
+			notificationResponse.Link = fmt.Sprintf("/chat/%s", room.ID.Hex())
 			notificationResponse.Picture = room.Picture
-			notificationResponse.Content = "Um novo usuário" + notification.Content + " entrou na sala" + room.Name
+			notificationResponse.Content = fmt.Sprintf("Um novo usuário entrou na sala %s", room.Name)
 		}
 	case models.NotificationTypeUserLeft:
 		var room models.Room
 		if err := ns.MongoService.GetCollection("rooms").FindOne(context.Background(), bson.M{"_id": notification.ObjectID}).Decode(&room); err == nil {
-			notificationResponse.Title = notification.Content + " saiu de " + room.Name
-			notificationResponse.Link = "/chat/" + room.ID.Hex()
+			notificationResponse.Title = fmt.Sprintf("%s saiu de %s", notification.Content, room.Name)
+			notificationResponse.Link = fmt.Sprintf("/chat/%s", room.ID.Hex())
 			notificationResponse.Picture = room.Picture
-			notificationResponse.Content = notification.Content + " saiu da sala" + room.Name
+			notificationResponse.Content = fmt.Sprintf("%s saiu da sala %s", notification.Content, room.Name)
 		}
 	}
 
