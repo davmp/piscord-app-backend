@@ -335,8 +335,7 @@ func (h *RoomHandler) GetRooms(c *gin.Context) {
 	if search := c.Query("search"); search != "" {
 		filter["name"] = bson.M{"$regex": search, "$options": "i"}
 	}
-
-	opt := options.Find().SetSort(bson.D{{Key: "member_count", Value: 1}})
+	opt := options.Find().SetSort(bson.D{{Key: "members", Value: -1}, {Key: "created_at", Value: 1}})
 
 	cursor, err := roomsCollection.Find(context.Background(), filter, opt)
 	if err != nil {
