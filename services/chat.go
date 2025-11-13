@@ -258,10 +258,11 @@ func (cs *ChatService) SendMessage(client *Client, roomID, content, fileUrl, mes
 		}
 	}
 
-	cs.notificateMessageGroupUsers(messageResponse)
+	cs.notificateMessage(messageResponse)
 
-	cs.notificateGroupUsers(
+	cs.notificateMessageGroupUsers(
 		roomID,
+		messageResponse,
 		models.NotificationRequest{
 			Content:  content,
 			Type:     models.NotificationTypeNewMessage,
@@ -530,7 +531,75 @@ func (cs *ChatService) notificateGroupUsers(roomID string, req models.Notificati
 	return nil
 }
 
-func (cs *ChatService) notificateMessageGroupUsers(message models.MessageResponse) error {
+func (cs *ChatService) notificateMessageGroupUsers(roomID string, message models.MessageResponse, req models.NotificationRequest) error {
+	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	if err != nil {
+		return err
+	}
+
+	room, err := cs.RoomService.GetRoomById(roomObjectID)
+	if err != nil {
+		return err
+	}
+
+	if len(room.Members) == 0 {
+		return nil
+	}
+
+	cs.Hub.mutex.RLock()
+	roomMap := cs.Hub.Rooms[roomID]
+	cs.Hub.mutex.RUnlock()
+
+	usersToNotify := make(map[primitive.ObjectID]struct{}, len(room.Members))
+
+	for _, memberID := range room.Members {
+		isOutOfRoom := (roomMap != nil && roomMap[memberID.Hex()] == nil) || roomMap == nil
+		if isOutOfRoom && (room.Type != "public" || slices.Contains(room.Admins, memberID)) {
+			usersToNotify[memberID] = struct{}{}
+		}
+	}
+
+	if message.ReplyTo != nil {
+		var repliedMsg models.Message
+		err := cs.MongoService.GetCollection("messages").FindOne(context.Background(), bson.M{"_id": message.ReplyTo}).Decode(&repliedMsg)
+		if err == nil && repliedMsg.UserID != message.UserID {
+			usersToNotify[repliedMsg.UserID] = struct{}{}
+		}
+	}
+
+	for userID := range usersToNotify {
+		notification := models.Notification{
+			ID:        primitive.NewObjectID(),
+			UserID:    userID,
+			Content:   req.Content,
+			Type:      req.Type,
+			ObjectID:  req.ObjectID,
+			ReadAt:    nil,
+			CreatedAt: time.Now(),
+		}
+
+		if err := cs.NotificationService.CreateNotification(&notification); err != nil {
+			log.Printf("Failed to create notification for user %s: %v", userID.Hex(), err)
+			continue
+		}
+
+		if client := cs.getClientSnapshot(userID.Hex()); client != nil {
+			cs.sendToClient(client, models.WSResponse{
+				Type:    "notification",
+				Success: true,
+				Data: map[string]any{
+					"id":        notification.ID.Hex(),
+					"type":      notification.Type,
+					"object_id": notification.ObjectID.Hex(),
+				},
+			})
+		}
+	}
+
+	return nil
+}
+
+func (cs *ChatService) notificateMessage(message models.MessageResponse) error {
 	room, err := cs.RoomService.GetRoomById(message.RoomID)
 	if err != nil {
 		return err

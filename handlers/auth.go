@@ -36,22 +36,29 @@ func NewAuthHandler(authService *services.AuthService, chatService *services.Cha
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req models.UserRegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "Username") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "O nome de usuário deve ter entre 3 e 30 caracteres."})
+		} else if strings.Contains(errMsg, "Password") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "A senha deve ter pelo menos 6 caracteres."})
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao processar os dados de registro."})
+		}
 		return
 	}
 
 	_, err := h.AuthService.GetUserByUsername(req.Username)
 	if err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "User already exists"})
+		c.JSON(http.StatusConflict, gin.H{"error": "Usuário já existe."})
 		return
 	} else if err != mongo.ErrNoDocuments {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro no banco de dados."})
 		return
 	}
 
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao criptografar a senha."})
 		return
 	}
 
@@ -66,13 +73,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	err = h.AuthService.CreateUser(&user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user record"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao criar o registro do usuário."})
 		return
 	}
 
 	token, err := utils.GenerateJWT(user.ID.Hex(), user.Username, user.Picture, h.Config.JWTSecret)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "User created but login failed: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Usuário criado, mas falha ao gerar o token de login: " + err.Error()})
 		return
 	}
 

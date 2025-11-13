@@ -55,6 +55,22 @@ type RoomResponse struct {
 	LastMessage *MessagePreviewResponse `json:"last_message"`
 }
 
+type RoomDetailsResponse struct {
+	ID          primitive.ObjectID `json:"id"`
+	DisplayName string             `json:"display_name"`
+	Description string             `json:"description,omitempty"`
+	Type        string             `json:"type"`
+	Picture     string             `json:"picture,omitempty"`
+	MemberCount int                `json:"member_count"`
+	MaxMembers  int                `json:"max_members,omitempty"`
+	Members     []RoomMember       `json:"members"`
+	Admins      []RoomMember       `json:"admins"`
+	IsActive    bool               `json:"is_active"`
+	IsAdmin     bool               `json:"is_admin"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
 type PublicRoomResponse struct {
 	RoomResponse
 	DisplayName string `json:"display_name"`
@@ -62,9 +78,9 @@ type PublicRoomResponse struct {
 }
 
 type RoomMember struct {
-	UserID   primitive.ObjectID `bson:"user_id" json:"user_id"`
-	Username string             `bson:"username" json:"username"`
-	Avatar   string             `bson:"avatar,omitempty" json:"avatar,omitempty"`
-	IsOnline bool               `bson:"is_online" json:"is_online"`
-	JoinedAt time.Time          `bson:"joined_at" json:"joined_at"`
+	UserID   primitive.ObjectID `json:"user_id"`
+	Username string             `json:"username"`
+	Picture  string             `json:"picture,omitempty"`
+	IsOnline bool               `json:"is_online"`
+	IsMe     bool               `json:"is_me"`
 }

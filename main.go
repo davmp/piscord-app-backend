@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,20 +36,18 @@ func main() {
 	}()
 
 	router := gin.Default()
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Authorization", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 	router.RedirectTrailingSlash = false
-
-	// router.Use(cors.New(cors.Config{
-	// 	AllowOrigins:     []string{"http://localhost"},
-	// 	AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-	// 	AllowHeaders:     []string{"Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"},
-	// 	ExposeHeaders:    []string{"Content-Length"},
-	// 	AllowCredentials: true,
-	// 	MaxAge:           12 * time.Hour,
-	// }))
 
 	authHandler := handlers.NewAuthHandler(authService, chatService, roomService, cfg)
 	chatHandler := handlers.NewChatHandler(chatService, cfg)
-	roomHandler := handlers.NewRoomHandler(mongoService, authService)
+	roomHandler := handlers.NewRoomHandler(authService, chatService, mongoService)
 	notificationHandler := handlers.NewNotificationHandler(notificationService)
 
 	profile := router.Group("/api/profile")

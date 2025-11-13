@@ -12,6 +12,7 @@
 *.so
 *.dylib
 piscord-backend
+dev.go
 
 # Test binary, built with `go test -c`
 *.test
@@ -25,6 +26,7 @@ piscord-backend
 # Go workspace file
 go.work
 .env
+docker-compose.yml
 
 ### VisualStudioCode ###
 .vscode/*

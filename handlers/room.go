@@ -19,14 +19,16 @@ import (
 )
 
 type RoomHandler struct {
-	MongoService *services.MongoService
 	AuthService  *services.AuthService
+	ChatService  *services.ChatService
+	MongoService *services.MongoService
 }
 
-func NewRoomHandler(mongoService *services.MongoService, authService *services.AuthService) *RoomHandler {
+func NewRoomHandler(authService *services.AuthService, chatService *services.ChatService, mongoService *services.MongoService) *RoomHandler {
 	return &RoomHandler{
-		MongoService: mongoService,
 		AuthService:  authService,
+		ChatService:  chatService,
+		MongoService: mongoService,
 	}
 }
 
@@ -225,13 +227,12 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 		return
 	}
 
-	roomResponse := models.RoomResponse{
+	roomResponse := models.RoomDetailsResponse{
 		ID:          room.ID,
 		DisplayName: room.Name,
 		Description: room.Description,
 		Type:        room.Type,
 		Picture:     room.Picture,
-		CreatedBy:   room.CreatedBy,
 		MemberCount: len(room.Members),
 		MaxMembers:  room.MaxMembers,
 		IsActive:    room.IsActive,
@@ -239,6 +240,39 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 		CreatedAt:   room.CreatedAt,
 		UpdatedAt:   room.UpdatedAt,
 	}
+
+	members := []models.RoomMember{}
+	for _, memberID := range room.Members {
+		member, err := h.AuthService.GetUserByID(memberID)
+
+		if err == nil {
+			members = append(members, models.RoomMember{
+				UserID:   memberID,
+				Username: member.Username,
+				Picture:  member.Picture,
+				IsOnline: h.ChatService.GetUserStatus(member.ID.Hex()),
+				IsMe:     member.ID == userObjectID,
+			})
+		}
+	}
+
+	admins := []models.RoomMember{}
+	for _, memberID := range room.Admins {
+		member, err := h.AuthService.GetUserByID(memberID)
+
+		if err == nil {
+			admins = append(admins, models.RoomMember{
+				UserID:   memberID,
+				Username: member.Username,
+				Picture:  member.Picture,
+				IsOnline: h.ChatService.GetUserStatus(member.ID.Hex()),
+				IsMe:     member.ID == userObjectID,
+			})
+		}
+	}
+
+	roomResponse.Members = members
+	roomResponse.Admins = admins
 
 	if room.Type == "direct" {
 		var otherMemberID primitive.ObjectID
@@ -255,6 +289,8 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 			return
 		}
 
+		roomResponse.Admins = []models.RoomMember{}
+		roomResponse.IsAdmin = false
 		roomResponse.DisplayName = user.Username
 		roomResponse.Picture = user.Picture
 	}
@@ -463,19 +499,72 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 		return
 	}
 
-	roomResponse := models.RoomResponse{
+	roomResponse := models.RoomDetailsResponse{
 		ID:          room.ID,
 		DisplayName: room.Name,
+		Description: room.Description,
 		Type:        room.Type,
 		Picture:     room.Picture,
-		Description: room.Description,
-		CreatedBy:   room.CreatedBy,
 		MemberCount: len(room.Members),
 		MaxMembers:  room.MaxMembers,
 		IsActive:    room.IsActive,
 		IsAdmin:     slices.Contains(room.Admins, userObjectID),
 		CreatedAt:   room.CreatedAt,
 		UpdatedAt:   room.UpdatedAt,
+	}
+
+	members := []models.RoomMember{}
+	for _, memberID := range room.Members {
+		member, err := h.AuthService.GetUserByID(memberID)
+
+		if err == nil {
+			members = append(members, models.RoomMember{
+				UserID:   memberID,
+				Username: member.Username,
+				Picture:  member.Picture,
+				IsOnline: h.ChatService.GetUserStatus(member.ID.Hex()),
+				IsMe:     member.ID == userObjectID,
+			})
+		}
+	}
+
+	admins := []models.RoomMember{}
+	for _, memberID := range room.Admins {
+		member, err := h.AuthService.GetUserByID(memberID)
+
+		if err == nil {
+			admins = append(admins, models.RoomMember{
+				UserID:   memberID,
+				Username: member.Username,
+				Picture:  member.Picture,
+				IsOnline: h.ChatService.GetUserStatus(member.ID.Hex()),
+				IsMe:     member.ID == userObjectID,
+			})
+		}
+	}
+
+	roomResponse.Members = members
+	roomResponse.Admins = admins
+
+	if room.Type == "direct" {
+		var otherMemberID primitive.ObjectID
+		for _, memberID := range room.Members {
+			if memberID != userObjectID {
+				otherMemberID = memberID
+				break
+			}
+		}
+
+		user, err := h.AuthService.GetUserByID(otherMemberID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+			return
+		}
+
+		roomResponse.Admins = []models.RoomMember{}
+		roomResponse.IsAdmin = false
+		roomResponse.DisplayName = user.Username
+		roomResponse.Picture = user.Picture
 	}
 
 	c.JSON(http.StatusOK, roomResponse)
