@@ -22,6 +22,12 @@ No repositório principal, basta seguir o passo a passo para subir todos os serv
 - Imagem Docker pronta para deploy
 - CI/CD publica a imagem no Docker Hub automaticamente
 
-## Contribua
+## Variáveis de Ambiente (Docker)
 
-Sugestões, correções e melhorias são bem-vindas!
+Essas variáveis podem ser executadas ao executar seu container.
+
+| Variável   | Descrição                                      | Exemplo                                   |
+| ---------- | ---------------------------------------------- | ----------------------------------------- |
+| MONGO_URI  | URI de conexão com o banco de dados MongoDB    | mongodb://_user_:_password_@_host_:_port_ |
+| JWT_SECRET | Chave secreta para autenticação JWT            | cGlzY29yZDMyMQ== (_piscord321_)           |
+| PORT       | Porta que o backend irá escutar (padrão: 8000) | 8000                                      |
