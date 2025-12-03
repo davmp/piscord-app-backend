@@ -15,7 +15,6 @@ import (
 	"piscord-backend/models"
 
 	"github.com/gorilla/websocket"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -91,19 +90,23 @@ func (cs *ChatService) Run() {
 }
 
 func (cs *ChatService) EnterRoom(client *Client, roomID string) error {
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		return err
 	}
 
-	userObjectID, err := primitive.ObjectIDFromHex(client.UserID)
+	userObjectID, err := bson.ObjectIDFromHex(client.UserID)
 	if err != nil {
 		return err
 	}
 
-	err = cs.RoomService.GetIsUserMember(roomObjectID, userObjectID)
+	room, err := cs.RoomService.GetRoomByID(roomObjectID)
 	if err != nil {
 		return err
+	}
+
+	if !slices.Contains(room.Members, userObjectID) {
+		return errors.New("user is not a member of this room")
 	}
 
 	for currentRoomID := range client.Rooms {
@@ -119,16 +122,22 @@ func (cs *ChatService) EnterRoom(client *Client, roomID string) error {
 	cs.Hub.Rooms[roomID][client.UserID] = client
 	client.Rooms[roomID] = true
 
+	go func() {
+		if err := cs.RedisService.AddUserToRoom(client.UserID, roomID); err != nil {
+			log.Printf("Failed to add user to room in Redis: %v", err)
+		}
+	}()
+
 	return nil
 }
 
 func (cs *ChatService) JoinRoom(client *Client, roomID string) error {
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		return err
 	}
 
-	room, err := cs.RoomService.GetRoomById(roomObjectID)
+	room, err := cs.RoomService.GetRoomByID(roomObjectID)
 	if err != nil {
 		return err
 	}
@@ -145,13 +154,19 @@ func (cs *ChatService) JoinRoom(client *Client, roomID string) error {
 	cs.Hub.Rooms[roomID][client.UserID] = client
 	client.Rooms[roomID] = true
 
+	go func() {
+		if err := cs.RedisService.AddUserToRoom(client.UserID, roomID); err != nil {
+			log.Printf("Failed to add user to room in Redis: %v", err)
+		}
+	}()
+
 	cs.Hub.mutex.Unlock()
 
 	message := models.WSResponse{
 		Type:    "user_joined",
 		Success: true,
 		Data: map[string]any{
-			"room_id": roomID,
+			"roomId": roomID,
 			"user": map[string]any{
 				"id":       client.UserID,
 				"username": client.Username,
@@ -189,18 +204,36 @@ func (cs *ChatService) GetUserStatus(userID string) bool {
 	return client != nil
 }
 
-func (cs *ChatService) SendMessage(client *Client, roomID, content, fileUrl, messageType string, replyTo *primitive.ObjectID) error {
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+func (cs *ChatService) IsUserInRoom(userID, roomID string) bool {
+	cs.Hub.mutex.RLock()
+	if room, ok := cs.Hub.Rooms[roomID]; ok {
+		if _, ok := room[userID]; ok {
+			cs.Hub.mutex.RUnlock()
+			return true
+		}
+	}
+	cs.Hub.mutex.RUnlock()
+
+	inRoom, err := cs.RedisService.IsUserInRoom(userID, roomID)
+	if err != nil {
+		log.Printf("Error checking Redis for room membership: %v", err)
+		return false
+	}
+	return inRoom
+}
+
+func (cs *ChatService) SendMessage(client *Client, roomID, content, fileUrl, messageType string, replyTo *bson.ObjectID) error {
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		return err
 	}
 
-	room, err := cs.RoomService.GetRoomById(roomObjectID)
+	room, err := cs.RoomService.GetRoomByID(roomObjectID)
 	if err != nil {
 		return err
 	}
 
-	userObjectID, err := primitive.ObjectIDFromHex(client.UserID)
+	userObjectID, err := bson.ObjectIDFromHex(client.UserID)
 	if err != nil {
 		return err
 	}
@@ -210,7 +243,7 @@ func (cs *ChatService) SendMessage(client *Client, roomID, content, fileUrl, mes
 	}
 
 	message := models.Message{
-		ID:        primitive.NewObjectID(),
+		ID:        bson.NewObjectID(),
 		RoomID:    roomObjectID,
 		UserID:    userObjectID,
 		Content:   content,
@@ -271,8 +304,8 @@ func (cs *ChatService) SendMessage(client *Client, roomID, content, fileUrl, mes
 			Type:    "new_message",
 			Success: true,
 			Data: map[string]any{
-				"message":        messageResponse,
-				"is_own_message": false,
+				"message":      messageResponse,
+				"isOwnMessage": false,
 			},
 		},
 		client,
@@ -282,8 +315,8 @@ func (cs *ChatService) SendMessage(client *Client, roomID, content, fileUrl, mes
 		Type:    "new_message",
 		Success: true,
 		Data: map[string]any{
-			"message":        messageResponse,
-			"is_own_message": true,
+			"message":      messageResponse,
+			"isOwnMessage": true,
 		},
 	})
 
@@ -291,17 +324,17 @@ func (cs *ChatService) SendMessage(client *Client, roomID, content, fileUrl, mes
 }
 
 func (cs *ChatService) EditMessage(client *Client, roomID, messageID, content string) error {
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		return err
 	}
 
-	userObjectID, err := primitive.ObjectIDFromHex(client.UserID)
+	userObjectID, err := bson.ObjectIDFromHex(client.UserID)
 	if err != nil {
 		return err
 	}
 
-	messageObjectID, err := primitive.ObjectIDFromHex(messageID)
+	messageObjectID, err := bson.ObjectIDFromHex(messageID)
 	if err != nil {
 		return err
 	}
@@ -309,9 +342,9 @@ func (cs *ChatService) EditMessage(client *Client, roomID, messageID, content st
 	_, err = cs.MongoService.GetCollection("messages").UpdateOne(
 		context.Background(),
 		bson.M{
-			"_id":     messageObjectID,
-			"user_id": userObjectID,
-			"room_id": roomObjectID,
+			"_id":    messageObjectID,
+			"userId": userObjectID,
+			"roomId": roomObjectID,
 		},
 		bson.M{
 			"$set": bson.M{
@@ -405,15 +438,21 @@ func (cs *ChatService) exitRoomInternal(client *Client, roomID string) {
 	}
 
 	delete(client.Rooms, roomID)
+
+	go func() {
+		if err := cs.RedisService.RemoveUserFromRoom(client.UserID, roomID); err != nil {
+			log.Printf("Failed to remove user from room in Redis: %v", err)
+		}
+	}()
 }
 
 func (cs *ChatService) leaveRoomInternal(client *Client, roomID string) {
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		return
 	}
 
-	room, err := cs.RoomService.GetRoomById(roomObjectID)
+	room, err := cs.RoomService.GetRoomByID(roomObjectID)
 	if err != nil {
 		return
 	}
@@ -431,13 +470,19 @@ func (cs *ChatService) leaveRoomInternal(client *Client, roomID string) {
 
 	delete(client.Rooms, roomID)
 
+	go func() {
+		if err := cs.RedisService.RemoveUserFromRoom(client.UserID, roomID); err != nil {
+			log.Printf("Failed to remove user from room in Redis: %v", err)
+		}
+	}()
+
 	cs.notifyUserLeft(room, client)
 
 	notification := models.WSResponse{
 		Type:    "user_left",
 		Success: true,
 		Data: map[string]any{
-			"room_id": roomID,
+			"roomId": roomID,
 			"user": map[string]any{
 				"id":       client.UserID,
 				"username": client.Username,
@@ -456,7 +501,7 @@ func (cs *ChatService) notifyUserLeft(room *models.Room, client *Client) error {
 	roomMap := cs.Hub.Rooms[room.ID.Hex()]
 	cs.Hub.mutex.RUnlock()
 
-	usersOutOfRoom := make([]primitive.ObjectID, 0, len(room.Members))
+	usersOutOfRoom := make([]bson.ObjectID, 0, len(room.Members))
 	for _, memberID := range room.Members {
 		if roomMap == nil {
 			if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, memberID)) {
@@ -475,7 +520,7 @@ func (cs *ChatService) notifyUserLeft(room *models.Room, client *Client) error {
 	for _, userID := range usersOutOfRoom {
 		if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, userID)) {
 			notification := models.Notification{
-				ID:        primitive.NewObjectID(),
+				ID:        bson.NewObjectID(),
 				UserID:    userID,
 				Title:     fmt.Sprintf("%s saiu da sala", client.Username),
 				Body:      fmt.Sprintf("O usuário %s saiu da sala %s", client.Username, room.Name),
@@ -515,7 +560,7 @@ func (cs *ChatService) notifyUserJoined(room *models.Room, client *Client) error
 	roomMap := cs.Hub.Rooms[room.ID.Hex()]
 	cs.Hub.mutex.RUnlock()
 
-	usersOutOfRoom := make([]primitive.ObjectID, 0, len(room.Members))
+	usersOutOfRoom := make([]bson.ObjectID, 0, len(room.Members))
 	for _, memberID := range room.Members {
 		if roomMap == nil {
 			if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, memberID)) {
@@ -534,7 +579,7 @@ func (cs *ChatService) notifyUserJoined(room *models.Room, client *Client) error
 	for _, userID := range usersOutOfRoom {
 		if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, userID)) {
 			notification := models.Notification{
-				ID:        primitive.NewObjectID(),
+				ID:        bson.NewObjectID(),
 				UserID:    userID,
 				Title:     fmt.Sprintf("%s entrou na sala", client.Username),
 				Body:      fmt.Sprintf("Um novo usuário %s entrou em %s", client.Username, room.Name),
@@ -578,7 +623,7 @@ func (cs *ChatService) notifyMessageGroupUsers(room *models.Room, message models
 	roomMap := cs.Hub.Rooms[room.ID.Hex()]
 	cs.Hub.mutex.RUnlock()
 
-	usersToNotify := make(map[primitive.ObjectID]struct{}, len(room.Members))
+	usersToNotify := make(map[bson.ObjectID]struct{}, len(room.Members))
 
 	for _, memberID := range room.Members {
 		isOutOfRoom := (roomMap != nil && roomMap[memberID.Hex()] == nil) || roomMap == nil
@@ -607,7 +652,7 @@ func (cs *ChatService) notifyMessageGroupUsers(room *models.Room, message models
 
 	for userID := range usersToNotify {
 		notification := models.Notification{
-			ID:        primitive.NewObjectID(),
+			ID:        bson.NewObjectID(),
 			UserID:    userID,
 			Title:     title,
 			Body:      body,
@@ -639,7 +684,7 @@ func (cs *ChatService) notifyMessageGroupUsers(room *models.Room, message models
 }
 
 func (cs *ChatService) notifyMessage(message models.MessageResponse) error {
-	room, err := cs.RoomService.GetRoomById(message.RoomID)
+	room, err := cs.RoomService.GetRoomByID(message.RoomID)
 	if err != nil {
 		return err
 	}
@@ -681,7 +726,7 @@ func (cs *ChatService) broadcastMessage(message []byte) {
 	}
 
 	if payload, ok := wsMsg.Payload.(map[string]any); ok {
-		if roomID, exists := payload["room_id"].(string); exists {
+		if roomID, exists := payload["roomId"].(string); exists {
 			cs.broadcastToRoom(roomID, message)
 			return
 		}

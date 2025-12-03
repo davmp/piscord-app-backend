@@ -45,3 +45,58 @@ func (rs *RedisService) Publish(stream string, eventType string, payload any) er
 
 	return nil
 }
+
+func (rs *RedisService) AddUserToRoom(userID, roomID string) error {
+	key := fmt.Sprintf("room:%s:members", roomID)
+	return rs.Client.SAdd(context.Background(), key, userID).Err()
+}
+
+func (rs *RedisService) RemoveUserFromRoom(userID, roomID string) error {
+	key := fmt.Sprintf("room:%s:members", roomID)
+	return rs.Client.SRem(context.Background(), key, userID).Err()
+}
+
+func (rs *RedisService) IsUserInRoom(userID, roomID string) (bool, error) {
+	key := fmt.Sprintf("room:%s:members", roomID)
+	return rs.Client.SIsMember(context.Background(), key, userID).Result()
+}
+
+func (rs *RedisService) CacheUserProfile(userID string, user any) error {
+	data, err := json.Marshal(user)
+	if err != nil {
+		return fmt.Errorf("failed to marshal user: %w", err)
+	}
+	key := fmt.Sprintf("user:%s:profile", userID)
+	return rs.Client.Set(context.Background(), key, data, 0).Err() // no expiration
+}
+
+func (rs *RedisService) GetCachedUser(userID string, target any) error {
+	key := fmt.Sprintf("user:%s:profile", userID)
+	data, err := rs.Client.Get(context.Background(), key).Bytes()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, target)
+}
+
+func (rs *RedisService) InvalidateUserCache(userID string) error {
+	key := fmt.Sprintf("user:%s:profile", userID)
+	return rs.Client.Del(context.Background(), key).Err()
+}
+
+// User Presence / Registration
+func (rs *RedisService) SetUserOnline(userID string) error {
+	return rs.Client.SAdd(context.Background(), "online_users", userID).Err()
+}
+
+func (rs *RedisService) SetUserOffline(userID string) error {
+	return rs.Client.SRem(context.Background(), "online_users", userID).Err()
+}
+
+func (rs *RedisService) GetOnlineUsers() ([]string, error) {
+	return rs.Client.SMembers(context.Background(), "online_users").Result()
+}
+
+func (rs *RedisService) IsUserOnline(userID string) (bool, error) {
+	return rs.Client.SIsMember(context.Background(), "online_users", userID).Result()
+}

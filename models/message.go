@@ -3,52 +3,52 @@ package models
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Message struct {
-	ID        primitive.ObjectID  `json:"id"`
-	RoomID    primitive.ObjectID  `json:"room_id"`
-	UserID    primitive.ObjectID  `json:"user_id"`
-	Content   string              `json:"content"`
-	Type      string              `json:"type"` // "text", "image", "file", "system"
-	FileURL   string              `json:"file_url,omitempty"`
-	ReplyTo   *primitive.ObjectID `json:"reply_to,omitempty"`
-	IsEdited  bool                `json:"is_edited"`
-	IsDeleted bool                `json:"is_deleted"`
-	CreatedAt time.Time           `json:"created_at"`
-	UpdatedAt time.Time           `json:"updated_at"`
+	ID        bson.ObjectID  `json:"id" bson:"_id,omitempty"`
+	RoomID    bson.ObjectID  `json:"roomId" bson:"roomId"`
+	UserID    bson.ObjectID  `json:"userId" bson:"userId"`
+	Content   string         `json:"content" bson:"content"`
+	Type      string         `json:"type" bson:"type"` // "text", "image", "file", "system"
+	FileURL   string         `json:"fileUrl,omitempty" bson:"fileUrl,omitempty"`
+	ReplyTo   *bson.ObjectID `json:"replyTo,omitempty" bson:"replyTo,omitempty"`
+	IsEdited  bool           `json:"isEdited" bson:"isEdited"`
+	IsDeleted bool           `json:"isDeleted" bson:"isDeleted"`
+	CreatedAt time.Time      `json:"createdAt" bson:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt" bson:"updatedAt"`
 }
 
 type SendMessageRequest struct {
-	RoomID  string `json:"room_id" binding:"required"`
+	RoomID  string `json:"roomId" binding:"required"`
 	Content string `json:"content" binding:"required"`
 	Type    string `json:"type,omitempty"`
-	ReplyTo string `json:"reply_to,omitempty"`
+	ReplyTo string `json:"replyTo,omitempty"`
 }
 
 type MessageResponse struct {
-	ID           primitive.ObjectID      `json:"id"`
-	RoomID       primitive.ObjectID      `json:"room_id"`
-	UserID       primitive.ObjectID      `json:"user_id"`
+	ID           bson.ObjectID           `json:"id"`
+	RoomID       bson.ObjectID           `json:"roomId"`
+	UserID       bson.ObjectID           `json:"userId"`
 	Username     string                  `json:"username"`
 	Picture      string                  `json:"picture,omitempty"`
 	Content      string                  `json:"content"`
 	Type         string                  `json:"type"`
-	FileURL      string                  `json:"file_url,omitempty"`
-	IsOwnMessage bool                    `json:"is_own_message"`
-	ReplyTo      *MessagePreviewResponse `json:"reply_to,omitempty"`
-	IsEdited     bool                    `json:"is_edited"`
-	CreatedAt    time.Time               `json:"created_at"`
-	UpdatedAt    time.Time               `json:"updated_at"`
+	FileURL      string                  `json:"fileUrl,omitempty"`
+	IsOwnMessage bool                    `json:"isOwnMessage"`
+	ReplyTo      *MessagePreviewResponse `json:"replyTo,omitempty"`
+	IsEdited     bool                    `json:"isEdited"`
+	CreatedAt    time.Time               `json:"createdAt"`
+	UpdatedAt    time.Time               `json:"updatedAt"`
 }
 
 type MessagePreviewResponse struct {
-	ID        primitive.ObjectID `json:"id"`
-	Username  string             `json:"username"`
-	Content   string             `json:"content"`
-	Picture   string             `json:"picture,omitempty"`
-	CreatedAt time.Time          `json:"created_at"`
+	ID        bson.ObjectID `json:"id"`
+	Username  string        `json:"username"`
+	Content   string        `json:"content"`
+	Picture   string        `json:"picture,omitempty"`
+	CreatedAt time.Time     `json:"createdAt"`
 }
 
 type WSMessage struct {

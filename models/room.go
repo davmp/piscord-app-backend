@@ -3,83 +3,95 @@ package models
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Room struct {
-	ID          primitive.ObjectID   `json:"id"`
-	Name        string               `json:"name,omitempty" binding:"max=50"`
-	Description string               `json:"description,omitempty"`
-	Type        string               `json:"type" binding:"required,oneof=private public direct"`
-	Picture     string               `json:"picture,omitempty"`
-	OwnerID     primitive.ObjectID   `json:"owner_id"`
-	Members     []primitive.ObjectID `json:"members"`
-	Admins      []primitive.ObjectID `json:"admins,omitempty"`
-	MaxMembers  int                  `json:"max_members,omitempty"`
-	IsActive    bool                 `json:"is_active"`
-	CreatedAt   time.Time            `json:"created_at"`
-	UpdatedAt   time.Time            `json:"updated_at"`
-	DirectKey   string               `json:"direct_key,omitempty"`
+	ID          bson.ObjectID   `json:"id" bson:"_id,omitempty"`
+	Name        string          `json:"name,omitempty" bson:"name,omitempty" binding:"max=50"`
+	Description string          `json:"description,omitempty" bson:"description,omitempty"`
+	Type        string          `json:"type" bson:"type" binding:"required,oneof=private public direct"`
+	Picture     string          `json:"picture,omitempty" bson:"picture,omitempty"`
+	OwnerID     bson.ObjectID   `json:"ownerId" bson:"ownerId"`
+	Members     []bson.ObjectID `json:"members" bson:"members"`
+	Admins      []bson.ObjectID `json:"admins,omitempty" bson:"admins,omitempty"`
+	MaxMembers  int             `json:"maxMembers,omitempty" bson:"maxMembers,omitempty"`
+	IsActive    bool            `json:"isActive" bson:"isActive"`
+	CreatedAt   time.Time       `json:"createdAt" bson:"createdAt"`
+	UpdatedAt   time.Time       `json:"updatedAt" bson:"updatedAt"`
+	DirectKey   string          `json:"directKey,omitempty" bson:"directKey,omitempty"`
 }
 
 type CreateRoomRequest struct {
-	Name           string   `json:"name,omitempty" binding:"max=50"`
-	Description    string   `json:"description,omitempty"`
-	Type           string   `json:"type" binding:"required,oneof=private public direct"`
-	Picture        string   `json:"picture,omitempty"`
-	MaxMembers     int      `json:"max_members,omitempty" binding:"max=100"`
-	ParticipantIDs []string `json:"participant_ids,omitempty"`
+	Name        string    `json:"name,omitempty" binding:"max=50"`
+	Description string    `json:"description,omitempty"`
+	Picture     string    `json:"picture,omitempty"`
+	Type        string    `json:"type" binding:"required,oneof=private public direct"`
+	Members     []string  `json:"members" bson:"members"`
+	Admins      []string  `json:"admins" bson:"admins"`
+	MaxMembers  int       `json:"maxMembers" binding:"max=100"`
+	IsActive    bool      `json:"isActive" bson:"isActive"`
+	DirectKey   string    `json:"directKey,omitempty" bson:"directKey,omitempty"`
+	CreatedAt   time.Time `json:"createdAt" bson:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt" bson:"updatedAt"`
 }
 
 type UpdateRoomRequest struct {
-	Name                 string   `json:"name,omitempty" binding:"max=50"`
-	Description          string   `json:"description,omitempty"`
-	Picture              string   `json:"picture,omitempty"`
-	MaxMembers           int      `json:"max_members,omitempty" binding:"max=100"`
-	RemoveParticipantIDs []string `json:"remove_participant_ids,omitempty"`
+	ID     string `json:"id" bson:"id"`
+	UserID string `json:"userId" bson:"userId"`
+
+	Name          string    `json:"name,omitempty" binding:"max=50"`
+	Description   string    `json:"description,omitempty"`
+	Picture       string    `json:"picture,omitempty"`
+	Type          string    `json:"type" binding:"required,oneof=private public direct"`
+	OwnerID       string    `json:"ownerId" bson:"ownerId"`
+	RemoveMembers []string  `json:"removeMembers,omitempty"`
+	AddMembers    []string  `json:"addMembers,omitempty"`
+	MaxMembers    int       `json:"maxMembers,omitempty" binding:"max=100"`
+	UpdatedAt     time.Time `json:"updatedAt" bson:"updatedAt"`
 }
 
 type RoomResponse struct {
-	ID          primitive.ObjectID      `json:"id"`
-	DisplayName string                  `json:"display_name"`
+	ID          bson.ObjectID           `json:"id"`
+	DisplayName string                  `json:"displayName"`
 	Description string                  `json:"description,omitempty"`
 	Type        string                  `json:"type"`
 	Picture     string                  `json:"picture,omitempty"`
-	OwnerID     primitive.ObjectID      `json:"owner_id"`
-	MemberCount int                     `json:"member_count"`
-	MaxMembers  int                     `json:"max_members,omitempty"`
-	IsActive    bool                    `json:"is_active"`
-	IsAdmin     bool                    `json:"is_admin"`
-	CreatedAt   time.Time               `json:"created_at"`
-	UpdatedAt   time.Time               `json:"updated_at"`
-	LastMessage *MessagePreviewResponse `json:"last_message"`
+	OwnerID     bson.ObjectID           `json:"ownerId"`
+	MemberCount int                     `json:"memberCount"`
+	MaxMembers  int                     `json:"maxMembers,omitempty"`
+	IsActive    bool                    `json:"isActive"`
+	IsAdmin     bool                    `json:"isAdmin"`
+	CreatedAt   time.Time               `json:"createdAt"`
+	UpdatedAt   time.Time               `json:"updatedAt"`
+	LastMessage *MessagePreviewResponse `json:"lastMessage"`
 }
 
 type RoomDetailsResponse struct {
-	ID          primitive.ObjectID `json:"id"`
-	DisplayName string             `json:"display_name"`
-	Description string             `json:"description,omitempty"`
-	Type        string             `json:"type"`
-	Picture     string             `json:"picture,omitempty"`
-	MemberCount int                `json:"member_count"`
-	MaxMembers  int                `json:"max_members,omitempty"`
-	IsActive    bool               `json:"is_active"`
-	IsAdmin     bool               `json:"is_admin"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
+	ID          bson.ObjectID `json:"id"`
+	DisplayName string        `json:"displayName"`
+	Description string        `json:"description,omitempty"`
+	Type        string        `json:"type"`
+	Picture     string        `json:"picture,omitempty"`
+	MemberCount int           `json:"memberCount"`
+	MaxMembers  int           `json:"maxMembers,omitempty"`
+	IsActive    bool          `json:"isActive"`
+	IsAdmin     bool          `json:"isAdmin"`
+	CreatedAt   time.Time     `json:"createdAt"`
+	UpdatedAt   time.Time     `json:"updatedAt"`
 }
 
 type PublicRoomResponse struct {
 	RoomResponse
-	DisplayName string `json:"display_name"`
-	IsMember    bool   `json:"is_member"`
+	DisplayName string `json:"displayName"`
+	IsMember    bool   `json:"isMember"`
 }
 
 type RoomMember struct {
-	UserID   primitive.ObjectID `json:"user_id"`
-	Username string             `json:"username"`
-	Picture  string             `json:"picture,omitempty"`
-	IsAdmin  bool               `json:"is_admin"`
-	IsOnline bool               `json:"is_online"`
-	IsMe     bool               `json:"is_me"`
+	UserID   bson.ObjectID `json:"userId"`
+	Username string        `json:"username"`
+	Picture  string        `json:"picture,omitempty"`
+	IsAdmin  bool          `json:"isAdmin"`
+	IsOnline bool          `json:"isOnline"`
+	IsMe     bool          `json:"isMe"`
 }

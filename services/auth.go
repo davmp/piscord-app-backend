@@ -4,7 +4,6 @@ import (
 	"context"
 	"piscord-backend/models"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -20,7 +19,7 @@ func NewAuthService(mongoService *MongoService, redisService *RedisService) *Aut
 	}
 }
 
-func (as *AuthService) GetUserByID(userID primitive.ObjectID) (*models.User, error) {
+func (as *AuthService) GetUserByID(userID bson.ObjectID) (*models.User, error) {
 	var user models.User
 	err := as.MongoService.GetCollection("users").FindOne(context.Background(), bson.M{"_id": userID}).Decode(&user)
 	if err != nil {
@@ -42,7 +41,7 @@ func (as *AuthService) CreateUser(user *models.User) error {
 	return as.RedisService.Publish("user", "user.register", user)
 }
 
-func (as *AuthService) UpdateUser(userID primitive.ObjectID, data map[string]any) (*models.User, error) {
+func (as *AuthService) UpdateUser(userID bson.ObjectID, data map[string]any) (*models.User, error) {
 	user, err := as.GetUserByID(userID)
 	if err != nil {
 		return nil, err

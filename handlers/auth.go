@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"slices"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"piscord-backend/utils"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -33,70 +33,6 @@ func NewAuthHandler(authService *services.AuthService, chatService *services.Cha
 	}
 }
 
-func (h *AuthHandler) Register(c *gin.Context) {
-	var req models.UserRegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "Username") {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "O nome de usuário deve ter entre 3 e 30 caracteres."})
-		} else if strings.Contains(errMsg, "Password") {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "A senha deve ter pelo menos 6 caracteres."})
-		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao processar os dados de registro."})
-		}
-		return
-	}
-
-	_, err := h.AuthService.GetUserByUsername(req.Username)
-	if err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Usuário já existe."})
-		return
-	} else if err != mongo.ErrNoDocuments {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro no banco de dados."})
-		return
-	}
-
-	hashedPassword, err := utils.HashPassword(req.Password)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao criptografar a senha."})
-		return
-	}
-
-	user := models.User{
-		ID:        primitive.NewObjectID(),
-		Username:  req.Username,
-		Password:  hashedPassword,
-		Picture:   req.Picture,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	err = h.AuthService.CreateUser(&user)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao criar o registro do usuário."})
-		return
-	}
-
-	token, err := utils.GenerateJWT(user.ID.Hex(), user.Username, user.Picture, h.Config.JWTSecret)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Usuário criado, mas falha ao gerar o token de login: " + err.Error()})
-		return
-	}
-
-	userResponse := models.UserResponse{
-		ID:        user.ID,
-		Username:  user.Username,
-		Picture:   user.Picture,
-		Bio:       user.Bio,
-		CreatedAt: user.CreatedAt,
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"token": token,
-		"user":  userResponse,
-	})
-}
-
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req models.AuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -106,6 +42,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	user, err := h.AuthService.GetUserByUsername(req.Username)
 	if err != nil {
+		log.Println("Error getting user by username: ", err)
 		if err == mongo.ErrNoDocuments {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		} else {
@@ -139,14 +76,78 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
+func (h *AuthHandler) Register(c *gin.Context) {
+	var req models.UserRegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "Username") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "O nome de usuário deve ter entre 3 e 30 caracteres."})
+		} else if strings.Contains(errMsg, "Password") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "A senha deve ter pelo menos 6 caracteres."})
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Erro ao processar os dados de registro."})
+		}
+		return
+	}
+
+	_, err := h.AuthService.GetUserByUsername(req.Username)
+	if err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Usuário já existe."})
+		return
+	} else if err != mongo.ErrNoDocuments {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro no banco de dados."})
+		return
+	}
+
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao criptografar a senha."})
+		return
+	}
+
+	user := models.User{
+		ID:        bson.NewObjectID(),
+		Username:  req.Username,
+		Password:  hashedPassword,
+		Picture:   req.Picture,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	err = h.AuthService.CreateUser(&user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao criar o registro do usuário."})
+		return
+	}
+
+	token, err := utils.GenerateJWT(user.ID.Hex(), user.Username, user.Picture, h.Config.JWTSecret)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Usuário criado, mas falha ao gerar o token de login: " + err.Error()})
+		return
+	}
+
+	userResponse := models.UserResponse{
+		ID:        user.ID,
+		Username:  user.Username,
+		Picture:   user.Picture,
+		Bio:       user.Bio,
+		CreatedAt: user.CreatedAt,
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"token": token,
+		"user":  userResponse,
+	})
+}
+
 func (h *AuthHandler) Profile(c *gin.Context) {
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -175,14 +176,14 @@ func (h *AuthHandler) Profile(c *gin.Context) {
 
 func (h *AuthHandler) GetProfileByID(c *gin.Context) {
 	profileID := c.Param("id")
-	profileObjectID, err := primitive.ObjectIDFromHex(profileID)
+	profileObjectID, err := bson.ObjectIDFromHex(profileID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, _ := c.Get("userId")
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
@@ -211,8 +212,8 @@ func (h *AuthHandler) GetProfileByID(c *gin.Context) {
 	}
 
 	if userObjectID != profileObjectID {
-		var userIDs = []primitive.ObjectID{userObjectID, profileObjectID}
-		slices.SortFunc(userIDs, func(a, b primitive.ObjectID) int {
+		var userIDs = []bson.ObjectID{userObjectID, profileObjectID}
+		slices.SortFunc(userIDs, func(a, b bson.ObjectID) int {
 			return strings.Compare(a.String(), b.String())
 		})
 
@@ -232,13 +233,13 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return

@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type NotificationType string
@@ -20,24 +20,13 @@ const (
 )
 
 type Notification struct {
-	ID        primitive.ObjectID `json:"id"`
-	UserID    primitive.ObjectID `json:"user_id"`
-	Title     string             `json:"title"`
-	Body      string             `json:"Body"`
-	Link      string             `json:"link,omitempty"`
-	Picture   string             `json:"picture,omitempty"`
-	Type      NotificationType   `json:"type"`
-	IsRead    bool               `json:"is_read"`
-	CreatedAt time.Time          `json:"created_at"`
-}
-
-type NotificationResponse struct {
-	ID        primitive.ObjectID `json:"id"`
-	Title     string             `json:"title"`
-	Link      string             `json:"link"`
-	Picture   string             `json:"picture"`
-	Body      string             `json:"Body"`
-	Type      NotificationType   `json:"type"`
-	IsRead    bool               `json:"is_read"`
-	CreatedAt time.Time          `json:"created_at"`
+	ID        bson.ObjectID    `json:"id" bson:"_id,omitempty"`
+	UserID    bson.ObjectID    `json:"userId" bson:"userId"`
+	Title     string           `json:"title" bson:"title"`
+	Body      string           `json:"Body" bson:"body"`
+	Link      string           `json:"link,omitempty" bson:"link,omitempty"`
+	Picture   string           `json:"picture,omitempty" bson:"picture,omitempty"`
+	Type      NotificationType `json:"type" bson:"type"`
+	IsRead    bool             `json:"isRead" bson:"isRead"`
+	CreatedAt time.Time        `json:"createdAt" bson:"createdAt"`
 }

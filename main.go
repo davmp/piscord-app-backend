@@ -23,8 +23,8 @@ func main() {
 	mongoService := services.NewMongoService(cfg.MongoURI)
 	redisService := services.NewRedisService(cfg.RedisURI)
 	authService := services.NewAuthService(mongoService, redisService)
-	roomService := services.NewRoomService(authService, mongoService)
-	notificationService := services.NewNotificationService(authService, mongoService, redisService)
+	roomService := services.NewRoomService(mongoService, redisService)
+	notificationService := services.NewNotificationService(mongoService, redisService)
 	chatService := services.NewChatService(roomService, mongoService, notificationService, authService, redisService)
 
 	if err := mongoService.Connect(); err != nil {

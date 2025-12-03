@@ -12,7 +12,6 @@ import (
 	"piscord-backend/services"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -41,16 +40,19 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	for _, pid := range req.ParticipantIDs {
-		participantObjectID, err := primitive.ObjectIDFromHex(pid)
-		if err == nil && participantObjectID == userObjectID {
+	for _, pid := range req.Members {
+		if pid == userID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot create direct room with yourself"})
 			return
 		}
@@ -61,14 +63,14 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 	}
 
 	room := models.Room{
-		ID:          primitive.NewObjectID(),
+		ID:          bson.NewObjectID(),
 		Name:        req.Name,
 		Description: req.Description,
 		Type:        req.Type,
 		Picture:     req.Picture,
 		OwnerID:     userObjectID,
-		Members:     []primitive.ObjectID{userObjectID},
-		Admins:      []primitive.ObjectID{},
+		Members:     []bson.ObjectID{userObjectID},
+		Admins:      []bson.ObjectID{},
 		IsActive:    true,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -78,24 +80,24 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 
 	if req.Type == "direct" {
 		room.MaxMembers = 2
-		participantID, err := primitive.ObjectIDFromHex(req.ParticipantIDs[0])
+		participantID, err := bson.ObjectIDFromHex(req.Members[0])
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 			return
 		}
 		room.Members = append(room.Members, participantID)
 
-		var userIDs = []primitive.ObjectID{userObjectID, participantID}
-		slices.SortFunc(userIDs, func(a, b primitive.ObjectID) int {
+		var userIDs = []bson.ObjectID{userObjectID, participantID}
+		slices.SortFunc(userIDs, func(a, b bson.ObjectID) int {
 			return strings.Compare(a.String(), b.String())
 		})
 		room.DirectKey = userIDs[0].Hex() + ":" + userIDs[1].Hex()
 
 		var existing models.Room
 		err = roomsCollection.FindOne(context.Background(), bson.M{
-			"type":       "direct",
-			"direct_key": room.DirectKey,
-			"is_active":  true,
+			"type":      "direct",
+			"directKey": room.DirectKey,
+			"isActive":  true,
 		}).Decode(&existing)
 
 		if err == nil {
@@ -115,7 +117,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 			}
 
 			if existing.Type == "direct" {
-				var otherMemberID primitive.ObjectID
+				var otherMemberID bson.ObjectID
 				for _, memberID := range existing.Members {
 					if memberID != userObjectID {
 						otherMemberID = memberID
@@ -143,13 +145,13 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		}
 	} else {
 		room.MaxMembers = req.MaxMembers
-		for _, pid := range req.ParticipantIDs {
-			participantID, err := primitive.ObjectIDFromHex(pid)
+		for _, pid := range req.Members {
+			participantID, err := bson.ObjectIDFromHex(pid)
 			if err == nil && participantID != userObjectID {
 				room.Members = append(room.Members, participantID)
 			}
 		}
-		room.Admins = []primitive.ObjectID{userObjectID}
+		room.Admins = []bson.ObjectID{userObjectID}
 	}
 
 	h.RedisService.Publish("chat", "room.create", room)
@@ -170,7 +172,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 	}
 
 	if room.Type == "direct" {
-		var otherMemberID primitive.ObjectID
+		var otherMemberID bson.ObjectID
 		for _, memberID := range room.Members {
 			if memberID != userObjectID {
 				otherMemberID = memberID
@@ -192,14 +194,18 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 
 func (h *RoomHandler) GetRoom(c *gin.Context) {
 	roomID := c.Param("id")
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -208,12 +214,8 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 	roomsCollection := h.MongoService.GetCollection("rooms")
 	var room models.Room
 	err = roomsCollection.FindOne(context.Background(), bson.M{
-		"_id":       roomObjectID,
-		"is_active": true,
-		"$or": []bson.M{
-			{"members": userObjectID},
-			{"type": "public"},
-		},
+		"_id":      roomObjectID,
+		"isActive": true,
 	}).Decode(&room)
 
 	if err != nil {
@@ -222,6 +224,14 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch room"})
 		}
+		return
+	}
+
+	isMember := slices.Contains(room.Members, userObjectID)
+	isInMemory := h.ChatService.IsUserInRoom(userObjectID.Hex(), roomObjectID.Hex())
+
+	if room.Type != "public" && !isMember && !isInMemory {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
 		return
 	}
 
@@ -240,7 +250,7 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 	}
 
 	if room.Type == "direct" {
-		var otherMemberID primitive.ObjectID
+		var otherMemberID bson.ObjectID
 		for _, memberID := range room.Members {
 			if memberID != userObjectID {
 				otherMemberID = memberID
@@ -264,13 +274,17 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 
 func (h *RoomHandler) GetRoomMembers(c *gin.Context) {
 	roomID := c.Param("id")
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -279,8 +293,8 @@ func (h *RoomHandler) GetRoomMembers(c *gin.Context) {
 	roomsCollection := h.MongoService.GetCollection("rooms")
 	var room models.Room
 	err = roomsCollection.FindOne(context.Background(), bson.M{
-		"_id":       roomObjectID,
-		"is_active": true,
+		"_id":      roomObjectID,
+		"isActive": true,
 	}).Decode(&room)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -329,21 +343,25 @@ func (h *RoomHandler) GetRoomMembers(c *gin.Context) {
 
 func (h *RoomHandler) GetDirectRoom(c *gin.Context) {
 	participantID := c.Param("id")
-	participantObjectID, err := primitive.ObjectIDFromHex(participantID)
+	participantObjectID, err := bson.ObjectIDFromHex(participantID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	var userIDs = []primitive.ObjectID{userObjectID, participantObjectID}
-	slices.SortFunc(userIDs, func(a, b primitive.ObjectID) int {
+	var userIDs = []bson.ObjectID{userObjectID, participantObjectID}
+	slices.SortFunc(userIDs, func(a, b bson.ObjectID) int {
 		return strings.Compare(a.String(), b.String())
 	})
 	directKey := userIDs[0].Hex() + ":" + userIDs[1].Hex()
@@ -351,9 +369,9 @@ func (h *RoomHandler) GetDirectRoom(c *gin.Context) {
 	roomsCollection := h.MongoService.GetCollection("rooms")
 	var room models.Room
 	err = roomsCollection.FindOne(context.Background(), bson.M{
-		"is_active":  true,
-		"direct_key": directKey,
-		"type":       "direct",
+		"isActive":  true,
+		"directKey": directKey,
+		"type":      "direct",
 	}).Decode(&room)
 
 	if err != nil {
@@ -384,8 +402,12 @@ func (h *RoomHandler) GetDirectRoom(c *gin.Context) {
 }
 
 func (h *RoomHandler) GetRooms(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -393,14 +415,14 @@ func (h *RoomHandler) GetRooms(c *gin.Context) {
 
 	roomsCollection := h.MongoService.GetCollection("rooms")
 	filter := bson.M{
-		"type":      "public",
-		"is_active": true,
+		"type":     "public",
+		"isActive": true,
 	}
 
 	if search := c.Query("search"); search != "" {
 		filter["name"] = bson.M{"$regex": search, "$options": "i"}
 	}
-	opt := options.Find().SetSort(bson.D{{Key: "members", Value: -1}, {Key: "created_at", Value: 1}})
+	opt := options.Find().SetSort(bson.D{{Key: "members", Value: -1}, {Key: "createdAt", Value: 1}})
 
 	cursor, err := roomsCollection.Find(context.Background(), filter, opt)
 	if err != nil {
@@ -453,14 +475,18 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 	}
 
 	roomID := c.Param("id")
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -496,11 +522,11 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 		room.Picture = req.Picture
 		updateFields["picture"] = room.Picture
 	}
-	if len(req.RemoveParticipantIDs) > 0 {
-		members := []primitive.ObjectID{}
+	if len(req.RemoveMembers) > 0 {
+		members := []bson.ObjectID{}
 
 		for _, pid := range room.Members {
-			if !slices.Contains(req.RemoveParticipantIDs, pid.Hex()) {
+			if !slices.Contains(req.RemoveMembers, pid.Hex()) {
 				members = append(members, pid)
 			}
 		}
@@ -510,7 +536,7 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 	if req.MaxMembers != 0 && req.MaxMembers != room.MaxMembers {
 		if req.MaxMembers >= len(room.Members) {
 			room.MaxMembers = req.MaxMembers
-			updateFields["max_members"] = room.MaxMembers
+			updateFields["maxMembers"] = room.MaxMembers
 		}
 	}
 
@@ -520,7 +546,7 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 	}
 
 	room.UpdatedAt = time.Now()
-	updateFields["updated_at"] = room.UpdatedAt
+	updateFields["updatedAt"] = room.UpdatedAt
 
 	h.RedisService.Publish("chat", "room.update", updateFields)
 
@@ -539,7 +565,7 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 	}
 
 	if room.Type == "direct" {
-		var otherMemberID primitive.ObjectID
+		var otherMemberID bson.ObjectID
 		for _, memberID := range room.Members {
 			if memberID != userObjectID {
 				otherMemberID = memberID
@@ -562,8 +588,12 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 }
 
 func (h *RoomHandler) GetMyRooms(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -571,19 +601,23 @@ func (h *RoomHandler) GetMyRooms(c *gin.Context) {
 
 	roomsCollection := h.MongoService.GetCollection("rooms")
 	filter := bson.M{
-		"members":   userObjectID,
-		"is_active": true,
+		"members":  userObjectID,
+		"isActive": true,
 	}
 
 	if search := c.Query("search"); search != "" {
 		filter["name"] = bson.M{"$regex": search, "$options": "i"}
 	}
 
-	opts := options.Find().SetSort(bson.D{{Key: "updated_at", Value: -1}})
+	opts := options.Find().SetSort(bson.D{{Key: "updatedAt", Value: -1}})
 
 	cursor, err := roomsCollection.Find(context.Background(), filter, opts)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch rooms"})
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No rooms found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch rooms"})
+		}
 		return
 	}
 	defer cursor.Close(context.Background())
@@ -613,7 +647,7 @@ func (h *RoomHandler) GetMyRooms(c *gin.Context) {
 		}
 
 		if room.Type == "direct" {
-			var otherMemberID primitive.ObjectID
+			var otherMemberID bson.ObjectID
 			for _, memberID := range room.Members {
 				if memberID != userObjectID {
 					otherMemberID = memberID
@@ -635,10 +669,10 @@ func (h *RoomHandler) GetMyRooms(c *gin.Context) {
 		messageCursor, err := h.MongoService.GetCollection("messages").Find(
 			context.Background(),
 			bson.M{
-				"room_id":    room.ID,
-				"is_deleted": false,
+				"roomId":    room.ID,
+				"isDeleted": false,
 			},
-			options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}}).SetLimit(1),
+			options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}).SetLimit(1),
 		)
 		if err == nil && messageCursor.Next(context.Background()) {
 			var lastMessage models.Message
@@ -684,22 +718,26 @@ func (h *RoomHandler) GetMyRooms(c *gin.Context) {
 
 func (h *RoomHandler) JoinRoom(c *gin.Context) {
 	roomID := c.Param("id")
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
 	h.RedisService.Publish("chat", "room.join", bson.M{
-		"id":      roomObjectID,
-		"user_id": userObjectID,
+		"id":     roomObjectID,
+		"userId": userObjectID,
 	})
 
 	c.JSON(http.StatusOK, gin.H{})
@@ -707,22 +745,26 @@ func (h *RoomHandler) JoinRoom(c *gin.Context) {
 
 func (h *RoomHandler) LeaveRoom(c *gin.Context) {
 	roomID := c.Param("id")
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
 	h.RedisService.Publish("chat", "room.leave", bson.M{
-		"id":      roomObjectID,
-		"user_id": userObjectID,
+		"id":     roomObjectID,
+		"userId": userObjectID,
 	})
 
 	c.JSON(http.StatusOK, gin.H{})
@@ -730,14 +772,19 @@ func (h *RoomHandler) LeaveRoom(c *gin.Context) {
 
 func (h *RoomHandler) GetMessages(c *gin.Context) {
 	roomID := c.Param("id")
-	roomObjectID, err := primitive.ObjectIDFromHex(roomID)
+	roomObjectID, err := bson.ObjectIDFromHex(roomID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid room ID"})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -745,11 +792,15 @@ func (h *RoomHandler) GetMessages(c *gin.Context) {
 
 	roomsCollection := h.MongoService.GetCollection("rooms")
 	count, err := roomsCollection.CountDocuments(context.Background(), bson.M{
-		"_id":       roomObjectID,
-		"members":   userObjectID,
-		"is_active": true,
+		"_id":      roomObjectID,
+		"members":  userObjectID,
+		"isActive": true,
 	})
-	if err != nil || count == 0 {
+
+	isMemberDB := err == nil && count > 0
+	isMemberMem := h.ChatService.IsUserInRoom(userObjectID.Hex(), roomObjectID.Hex())
+
+	if !isMemberDB && !isMemberMem {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
@@ -771,12 +822,12 @@ func (h *RoomHandler) GetMessages(c *gin.Context) {
 
 	messagesCollection := h.MongoService.GetCollection("messages")
 	filter := bson.M{
-		"room_id":    roomObjectID,
-		"is_deleted": false,
+		"roomId":    roomObjectID,
+		"isDeleted": false,
 	}
 
 	opts := options.Find().
-		SetSort(bson.D{{Key: "created_at", Value: -1}}).
+		SetSort(bson.D{{Key: "createdAt", Value: -1}}).
 		SetSkip(int64(skip)).
 		SetLimit(int64(limit))
 
@@ -788,7 +839,7 @@ func (h *RoomHandler) GetMessages(c *gin.Context) {
 	defer cursor.Close(context.Background())
 
 	messages := []models.MessageResponse{}
-	users := make(map[primitive.ObjectID]*models.User)
+	users := make(map[bson.ObjectID]*models.User)
 
 	for cursor.Next(context.Background()) {
 		var message models.Message

@@ -2,12 +2,11 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
 	"piscord-backend/services"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type NotificationHandler struct {
@@ -22,8 +21,12 @@ func NewNotificationHandler(notificationService *services.NotificationService) *
 }
 
 func (h *NotificationHandler) GetUnreadNotificationCount(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -39,27 +42,31 @@ func (h *NotificationHandler) GetUnreadNotificationCount(c *gin.Context) {
 }
 
 func (h *NotificationHandler) GetMyNotifications(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	page := 1
-	limit := 50
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
-		}
-	}
-	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
-			limit = parsed
-		}
-	}
+	// page := 1
+	// limit := 50
+	// if p := c.Query("page"); p != "" {
+	// 	if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+	// 		page = parsed
+	// 	}
+	// }
+	// if l := c.Query("limit"); l != "" {
+	// 	if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+	// 		limit = parsed
+	// 	}
+	// }
 
-	notifications, err := h.NotificationService.GetMyNotifications(page, limit, userObjectID)
+	notifications, err := h.NotificationService.GetNotificationsByUserID(userObjectID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch notifications"})
 		return
@@ -73,14 +80,18 @@ func (h *NotificationHandler) GetMyNotifications(c *gin.Context) {
 
 func (h *NotificationHandler) MarkNotificationAsRead(c *gin.Context) {
 	notificationID, _ := c.Params.Get("id")
-	notificationObjectID, err := primitive.ObjectIDFromHex(notificationID)
+	notificationObjectID, err := bson.ObjectIDFromHex(notificationID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -96,8 +107,12 @@ func (h *NotificationHandler) MarkNotificationAsRead(c *gin.Context) {
 }
 
 func (h *NotificationHandler) MarkAllNotificationsAsRead(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -114,14 +129,18 @@ func (h *NotificationHandler) MarkAllNotificationsAsRead(c *gin.Context) {
 
 func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
 	notificationID, _ := c.Params.Get("id")
-	notificationObjectID, err := primitive.ObjectIDFromHex(notificationID)
+	notificationObjectID, err := bson.ObjectIDFromHex(notificationID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid notification ID"})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -137,8 +156,12 @@ func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
 }
 
 func (h *NotificationHandler) DeleteAllNotifications(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	userObjectID, err := primitive.ObjectIDFromHex(userID.(string))
+	userID, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjectID, err := bson.ObjectIDFromHex(userID.(string))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return

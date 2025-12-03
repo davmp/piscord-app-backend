@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 var upgrader = websocket.Upgrader{
@@ -182,9 +182,9 @@ func (h *ChatHandler) handleMessage(client *services.Client, message []byte) {
 }
 
 func (h *ChatHandler) handleEnterRoom(client *services.Client, payload map[string]any) {
-	roomID, ok := payload["room_id"].(string)
+	roomID, ok := payload["roomId"].(string)
 	if !ok {
-		h.sendError(client, "Missing room_id")
+		h.sendError(client, "Missing roomId")
 		return
 	}
 
@@ -199,16 +199,16 @@ func (h *ChatHandler) handleEnterRoom(client *services.Client, payload map[strin
 		Success: true,
 		Message: "Entered room successfully",
 		Data: map[string]any{
-			"room_id": roomID,
+			"roomId": roomID,
 		},
 	}
 	h.sendToClient(client, response)
 }
 
 func (h *ChatHandler) handleExitRoom(client *services.Client, payload map[string]any) {
-	roomID, ok := payload["room_id"].(string)
+	roomID, ok := payload["roomId"].(string)
 	if !ok {
-		h.sendError(client, "Missing room_id")
+		h.sendError(client, "Missing roomId")
 		return
 	}
 
@@ -216,9 +216,9 @@ func (h *ChatHandler) handleExitRoom(client *services.Client, payload map[string
 }
 
 func (h *ChatHandler) handleJoinRoom(client *services.Client, payload map[string]any) {
-	roomID, ok := payload["room_id"].(string)
+	roomID, ok := payload["roomId"].(string)
 	if !ok {
-		h.sendError(client, "Missing room_id")
+		h.sendError(client, "Missing roomId")
 		return
 	}
 
@@ -233,16 +233,16 @@ func (h *ChatHandler) handleJoinRoom(client *services.Client, payload map[string
 		Success: true,
 		Message: "Successfully joined room",
 		Data: map[string]any{
-			"room_id": roomID,
+			"roomId": roomID,
 		},
 	}
 	h.sendToClient(client, response)
 }
 
 func (h *ChatHandler) handleLeaveRoom(client *services.Client, payload map[string]any) {
-	roomID, ok := payload["room_id"].(string)
+	roomID, ok := payload["roomId"].(string)
 	if !ok {
-		h.sendError(client, "Missing room_id")
+		h.sendError(client, "Missing roomId")
 		return
 	}
 
@@ -253,16 +253,16 @@ func (h *ChatHandler) handleLeaveRoom(client *services.Client, payload map[strin
 		Success: true,
 		Message: "Successfully left room",
 		Data: map[string]any{
-			"room_id": roomID,
+			"roomId": roomID,
 		},
 	}
 	h.sendToClient(client, response)
 }
 
 func (h *ChatHandler) handleSendMessage(client *services.Client, payload map[string]any) {
-	roomID, ok := payload["room_id"].(string)
+	roomID, ok := payload["roomId"].(string)
 	if !ok {
-		h.sendError(client, "Missing room_id")
+		h.sendError(client, "Missing roomId")
 		return
 	}
 
@@ -288,9 +288,9 @@ func (h *ChatHandler) handleSendMessage(client *services.Client, payload map[str
 		fileUrl = fileUrlStr
 	}
 
-	var replyTo *primitive.ObjectID = nil
+	var replyTo *bson.ObjectID = nil
 	if replyToStr, exists := payload["reply_to"].(string); exists {
-		replyToObjectID, err := primitive.ObjectIDFromHex(replyToStr)
+		replyToObjectID, err := bson.ObjectIDFromHex(replyToStr)
 
 		if err != nil {
 			h.sendError(client, "Invalid message to reply")
@@ -315,9 +315,9 @@ func (h *ChatHandler) handleSendMessage(client *services.Client, payload map[str
 }
 
 func (h *ChatHandler) handleEditMessage(client *services.Client, payload map[string]any) {
-	roomID, ok := payload["room_id"].(string)
+	roomID, ok := payload["roomId"].(string)
 	if !ok {
-		h.sendError(client, "Missing room_id")
+		h.sendError(client, "Missing roomId")
 		return
 	}
 
@@ -327,7 +327,7 @@ func (h *ChatHandler) handleEditMessage(client *services.Client, payload map[str
 		return
 	}
 
-	messageId, ok := payload["message_id"].(string)
+	messageId, ok := payload["messageId"].(string)
 	if !ok {
 		h.sendError(client, "Missing message to edit")
 		return
@@ -354,9 +354,9 @@ func (h *ChatHandler) handleEditMessage(client *services.Client, payload map[str
 }
 
 func (h *ChatHandler) handleTyping(client *services.Client, payload map[string]any) {
-	roomID, ok := payload["room_id"].(string)
+	roomID, ok := payload["roomId"].(string)
 	if !ok {
-		h.sendError(client, "Missing room_id")
+		h.sendError(client, "Missing roomId")
 		return
 	}
 
@@ -370,7 +370,7 @@ func (h *ChatHandler) handleTyping(client *services.Client, payload map[string]a
 		Type:    "user_typing",
 		Success: true,
 		Data: map[string]any{
-			"room_id": roomID,
+			"roomId": roomID,
 			"user": map[string]any{
 				"id":       client.UserID,
 				"username": client.Username,

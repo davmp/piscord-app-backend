@@ -6337,7 +6337,7 @@ var PackageSymbols = map[string][]Symbol{
 		{"Float32", Const, 5, ""},
 		{"Float64", Const, 5, ""},
 		{"Func", Type, 5, ""},
-		{"Id", Func, 5, "func(pkg *Package, name string) string"},
+		{"_id", Func, 5, "func(pkg *Package, name string) string"},
 		{"Identical", Func, 5, "func(x Type, y Type) bool"},
 		{"IdenticalIgnoreTags", Func, 8, "func(x Type, y Type) bool"},
 		{"Implements", Func, 5, "func(V Type, T *Interface) bool"},

@@ -20,7 +20,6 @@ WORKDIR /root/
 
 COPY --from=builder /app/piscord-backend .
 
-ENV PORT=$PORT
 EXPOSE 8000
 
 ENTRYPOINT ["./piscord-backend"]
