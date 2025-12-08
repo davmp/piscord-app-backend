@@ -10,7 +10,7 @@ type Room struct {
 	ID          bson.ObjectID   `json:"id" bson:"_id,omitempty"`
 	Name        string          `json:"name,omitempty" bson:"name,omitempty" binding:"max=50"`
 	Description string          `json:"description,omitempty" bson:"description,omitempty"`
-	Type        string          `json:"type" bson:"type" binding:"required,oneof=private public direct"`
+	Type        string          `json:"type" bson:"type" binding:"required,oneof=PRIVATE PUBLIC DIRECT"`
 	Picture     string          `json:"picture,omitempty" bson:"picture,omitempty"`
 	OwnerID     bson.ObjectID   `json:"ownerId" bson:"ownerId"`
 	Members     []bson.ObjectID `json:"members" bson:"members"`
@@ -26,7 +26,7 @@ type CreateRoomRequest struct {
 	Name        string    `json:"name,omitempty" binding:"max=50"`
 	Description string    `json:"description,omitempty"`
 	Picture     string    `json:"picture,omitempty"`
-	Type        string    `json:"type" binding:"required,oneof=private public direct"`
+	Type        string    `json:"type" binding:"required,oneof=PRIVATE PUBLIC DIRECT"`
 	Members     []string  `json:"members" bson:"members"`
 	Admins      []string  `json:"admins" bson:"admins"`
 	MaxMembers  int       `json:"maxMembers" binding:"max=100"`
@@ -43,7 +43,7 @@ type UpdateRoomRequest struct {
 	Name          string    `json:"name,omitempty" binding:"max=50"`
 	Description   string    `json:"description,omitempty"`
 	Picture       string    `json:"picture,omitempty"`
-	Type          string    `json:"type" binding:"required,oneof=private public direct"`
+	Type          string    `json:"type" binding:"required,oneof=PRIVATE PUBLIC DIRECT"`
 	OwnerID       string    `json:"ownerId" bson:"ownerId"`
 	RemoveMembers []string  `json:"removeMembers,omitempty"`
 	AddMembers    []string  `json:"addMembers,omitempty"`

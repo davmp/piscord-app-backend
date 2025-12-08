@@ -653,7 +653,7 @@ func (h *RoomHandler) GetMyRooms(c *gin.Context) {
 						Username: user.Username,
 						Picture:  user.Picture,
 					},
-					CreatedAt: message.CreatedAt,
+					SentAt: message.CreatedAt,
 				}
 			}
 		}
@@ -664,10 +664,10 @@ func (h *RoomHandler) GetMyRooms(c *gin.Context) {
 	slices.SortFunc(rooms, func(a, b models.RoomPreview) int {
 		var aTime, bTime time.Time
 		if a.LastMessage != nil {
-			aTime = a.LastMessage.CreatedAt
+			aTime = a.LastMessage.SentAt
 		}
 		if b.LastMessage != nil {
-			bTime = b.LastMessage.CreatedAt
+			bTime = b.LastMessage.SentAt
 		}
 		return bTime.Compare(aTime)
 	})
@@ -815,10 +815,7 @@ func (h *RoomHandler) GetMessages(c *gin.Context) {
 	skip := (page - 1) * limit
 
 	messagesCollection := h.MongoService.GetCollection("messages")
-	filter := bson.M{
-		"roomId":  roomObjectID,
-		"deleted": false,
-	}
+	filter := bson.M{"roomId": roomObjectID}
 
 	opts := options.Find().
 		SetSort(bson.D{{Key: "createdAt", Value: -1}}).

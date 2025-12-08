@@ -288,54 +288,54 @@ func (h *ChatHandler) handleSendMessage(client *services.Client, payload map[str
 	if replyToMap, exists := payload["replyTo"].(map[string]any); exists {
 		idStr, ok := replyToMap["id"].(string)
 		if !ok {
-			h.sendError(client, "Missing reply_to id")
+			h.sendError(client, "Missing replyTo id")
 			return
 		}
 		replyToObjectID, err := bson.ObjectIDFromHex(idStr)
 		if err != nil {
-			h.sendError(client, "Invalid reply_to id")
+			h.sendError(client, "Invalid replyTo id")
 			return
 		}
 
 		content, ok := replyToMap["content"].(string)
 		if !ok {
-			h.sendError(client, "Missing reply_to content")
+			h.sendError(client, "Missing replyTo content")
 			return
 		}
 
 		authorMap, ok := replyToMap["author"].(map[string]any)
 		if !ok {
-			h.sendError(client, "Missing reply_to author")
+			h.sendError(client, "Missing replyTo author")
 			return
 		}
 
 		authorIDStr, ok := authorMap["id"].(string)
 		if !ok {
-			h.sendError(client, "Missing reply_to author id")
+			h.sendError(client, "Missing replyTo author id")
 			return
 		}
 		authorID, err := bson.ObjectIDFromHex(authorIDStr)
 		if err != nil {
-			h.sendError(client, "Invalid reply_to author id")
+			h.sendError(client, "Invalid replyTo author id")
 			return
 		}
 
 		authorUsername, ok := authorMap["username"].(string)
 		if !ok {
-			h.sendError(client, "Missing reply_to author username")
+			h.sendError(client, "Missing replyTo author username")
 			return
 		}
 
 		authorPicture, _ := authorMap["picture"].(string)
 
-		createdAtStr, ok := replyToMap["createdAt"].(string)
+		sentAtStr, ok := replyToMap["sentAt"].(string)
 		if !ok {
-			h.sendError(client, "Missing reply_to createdAt")
+			h.sendError(client, "Missing replyTo sentAt")
 			return
 		}
-		createdAt, err := time.Parse(time.RFC3339, createdAtStr)
+		sentAt, err := time.Parse(time.RFC3339, sentAtStr)
 		if err != nil {
-			h.sendError(client, "Invalid reply_to createdAt format")
+			h.sendError(client, "Invalid replyTo sentAt format")
 			return
 		}
 
@@ -347,7 +347,7 @@ func (h *ChatHandler) handleSendMessage(client *services.Client, payload map[str
 				Username: authorUsername,
 				Picture:  authorPicture,
 			},
-			CreatedAt: createdAt,
+			SentAt: sentAt,
 		}
 	}
 

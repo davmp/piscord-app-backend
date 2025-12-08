@@ -314,7 +314,7 @@ func (cs *ChatService) DeleteMessage(client *Client, messageID string) error {
 		return err
 	}
 
-	return cs.RedisService.Publish("chat", "message.delete", models.MessageUpdate{
+	return cs.RedisService.Publish("chat", "message.delete", models.MessageDelete{
 		ID:     messageObjectID,
 		UserID: userObjectID,
 	})
@@ -485,7 +485,7 @@ func (cs *ChatService) kickUserInternal(client *Client, roomID string) {
 				Picture:  room.Picture,
 			},
 			FileURL:   "",
-			IsDeleted: false,
+			Deleted:   false,
 			RoomID:    roomObjectID,
 			CreatedAt: time.Now(),
 		},

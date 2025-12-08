@@ -13,8 +13,8 @@ type Message struct {
 	Content   string          `json:"content" bson:"content"`
 	FileURL   string          `json:"fileUrl,omitempty" bson:"fileUrl,omitempty"`
 	ReplyTo   *MessagePreview `json:"replyTo,omitempty" bson:"replyTo,omitempty"`
-	IsDeleted bool            `json:"isDeleted" bson:"isDeleted"`
-	EditedAt  *time.Time      `json:"editedAt" bson:"editedAt"`
+	Deleted   bool            `json:"deleted" bson:"deleted"`
+	Edited    bool            `json:"edited" bson:"edited"`
 	CreatedAt time.Time       `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time       `json:"updatedAt" bson:"updatedAt"`
 }
@@ -35,11 +35,16 @@ type MessageUpdate struct {
 	UpdatedAt time.Time     `json:"updatedAt"`
 }
 
+type MessageDelete struct {
+	ID     bson.ObjectID `json:"id"`
+	UserID bson.ObjectID `json:"userId"`
+}
+
 type MessagePreview struct {
-	ID        bson.ObjectID `json:"id" bson:"_id"`
-	Content   string        `json:"content" bson:"content"`
-	Author    UserSummary   `json:"author" bson:"author"`
-	CreatedAt time.Time     `json:"createdAt" bson:"createdAt"`
+	ID      bson.ObjectID `json:"id" bson:"_id"`
+	Content string        `json:"content" bson:"content"`
+	Author  UserSummary   `json:"author" bson:"author"`
+	SentAt  time.Time     `json:"sentAt" bson:"sentAt"`
 }
 
 type WSMessage struct {
