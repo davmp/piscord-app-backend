@@ -80,7 +80,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 
 	roomsCollection := h.MongoService.GetCollection("rooms")
 
-	if req.Type == "direct" {
+	if req.Type == "DIRECT" {
 		room.MaxMembers = 2
 		participantID, err := bson.ObjectIDFromHex(req.Members[0])
 		if err != nil {
@@ -113,7 +113,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 				LastMessage: nil,
 			}
 
-			if existing.Type == "direct" {
+			if existing.Type == "DIRECT" {
 				var otherMemberID bson.ObjectID
 				for _, memberID := range existing.Members {
 					if memberID != userObjectID {
@@ -164,7 +164,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		LastMessage: nil,
 	}
 
-	if room.Type == "direct" {
+	if room.Type == "DIRECT" {
 		var otherMemberID bson.ObjectID
 		for _, memberID := range room.Members {
 			if memberID != userObjectID {
@@ -223,7 +223,7 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 	isMember := slices.Contains(room.Members, userObjectID)
 	isInMemory := h.ChatService.IsUserInRoom(userObjectID.Hex(), roomObjectID.Hex())
 
-	if room.Type != "public" && !isMember && !isInMemory {
+	if room.Type != "PUBLIC" && !isMember && !isInMemory {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Room not found"})
 		return
 	}
@@ -241,7 +241,7 @@ func (h *RoomHandler) GetRoom(c *gin.Context) {
 		UpdatedAt:   room.UpdatedAt,
 	}
 
-	if room.Type == "direct" {
+	if room.Type == "DIRECT" {
 		var otherMemberID bson.ObjectID
 		for _, memberID := range room.Members {
 			if memberID != userObjectID {
@@ -521,7 +521,7 @@ func (h *RoomHandler) UpdateRoom(c *gin.Context) {
 		UpdatedAt:   room.UpdatedAt,
 	}
 
-	if room.Type == "direct" {
+	if room.Type == "DIRECT" {
 		var otherMemberID bson.ObjectID
 		for _, memberID := range room.Members {
 			if memberID != userObjectID {
@@ -604,7 +604,7 @@ func (h *RoomHandler) GetMyRooms(c *gin.Context) {
 			LastMessage: nil,
 		}
 
-		if room.Type == "direct" {
+		if room.Type == "DIRECT" {
 			var otherMemberID bson.ObjectID
 			for _, memberID := range room.Members {
 				if memberID != userObjectID {

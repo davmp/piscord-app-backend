@@ -367,7 +367,7 @@ func (u *ConnString) addOptions(connectionArgPairs []string) error {
 		case "connect":
 			switch strings.ToLower(value) {
 			case "automatic":
-			case "direct":
+			case "DIRECT":
 				u.Connect = SingleConnect
 			default:
 				return fmt.Errorf("invalid 'connect' value: %q", value)
@@ -845,7 +845,7 @@ func (c ConnectMode) String() string {
 	case AutoConnect:
 		return "automatic"
 	case SingleConnect:
-		return "direct"
+		return "DIRECT"
 	default:
 		return "unknown"
 	}

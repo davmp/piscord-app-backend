@@ -146,7 +146,7 @@ func (rs *RoomService) RemoveMember(roomID bson.ObjectID, userID bson.ObjectID) 
 func (rs *RoomService) GetPublicRooms(limit int64, offset int64) ([]*models.Room, error) {
 	var rooms []*models.Room
 	opts := options.Find().SetLimit(limit).SetSkip(offset)
-	cursor, err := rs.MongoService.GetCollection("rooms").Find(context.Background(), bson.M{"type": "public"}, opts)
+	cursor, err := rs.MongoService.GetCollection("rooms").Find(context.Background(), bson.M{"type": "PUBLIC"}, opts)
 	if err != nil {
 		return nil, err
 	}

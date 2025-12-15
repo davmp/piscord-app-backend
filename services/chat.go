@@ -500,21 +500,21 @@ func (cs *ChatService) notifyUserLeft(room *models.Room, client *Client) error {
 	usersOutOfRoom := make([]bson.ObjectID, 0, len(room.Members))
 	for _, memberID := range room.Members {
 		if roomMap == nil {
-			if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, memberID)) {
+			if room.Type != "PUBLIC" || (room.Type == "PUBLIC" && slices.Contains(room.Admins, memberID)) {
 				usersOutOfRoom = append(usersOutOfRoom, memberID)
 			}
 			continue
 		}
 
 		if _, ok := roomMap[memberID.Hex()]; !ok {
-			if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, memberID)) {
+			if room.Type != "PUBLIC" || (room.Type == "PUBLIC" && slices.Contains(room.Admins, memberID)) {
 				usersOutOfRoom = append(usersOutOfRoom, memberID)
 			}
 		}
 	}
 
 	for _, userID := range usersOutOfRoom {
-		if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, userID)) {
+		if room.Type != "PUBLIC" || (room.Type == "PUBLIC" && slices.Contains(room.Admins, userID)) {
 			notification := models.Notification{
 				ID:        bson.NewObjectID(),
 				UserID:    userID,
@@ -559,21 +559,21 @@ func (cs *ChatService) notifyUserJoined(room *models.Room, client *Client) error
 	usersOutOfRoom := make([]bson.ObjectID, 0, len(room.Members))
 	for _, memberID := range room.Members {
 		if roomMap == nil {
-			if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, memberID)) {
+			if room.Type != "PUBLIC" || (room.Type == "PUBLIC" && slices.Contains(room.Admins, memberID)) {
 				usersOutOfRoom = append(usersOutOfRoom, memberID)
 			}
 			continue
 		}
 
 		if _, ok := roomMap[memberID.Hex()]; !ok {
-			if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, memberID)) {
+			if room.Type != "PUBLIC" || (room.Type == "PUBLIC" && slices.Contains(room.Admins, memberID)) {
 				usersOutOfRoom = append(usersOutOfRoom, memberID)
 			}
 		}
 	}
 
 	for _, userID := range usersOutOfRoom {
-		if room.Type != "public" || (room.Type == "public" && slices.Contains(room.Admins, userID)) {
+		if room.Type != "PUBLIC" || (room.Type == "PUBLIC" && slices.Contains(room.Admins, userID)) {
 			notification := models.Notification{
 				ID:        bson.NewObjectID(),
 				UserID:    userID,
@@ -623,7 +623,7 @@ func (cs *ChatService) notifyMessageGroupUsers(room *models.Room, message models
 
 	for _, memberID := range room.Members {
 		isOutOfRoom := (roomMap != nil && roomMap[memberID.Hex()] == nil) || roomMap == nil
-		if isOutOfRoom && (room.Type != "public" || slices.Contains(room.Admins, memberID)) {
+		if isOutOfRoom && (room.Type != "PUBLIC" || slices.Contains(room.Admins, memberID)) {
 			usersToNotify[memberID] = struct{}{}
 		}
 	}
@@ -638,7 +638,7 @@ func (cs *ChatService) notifyMessageGroupUsers(room *models.Room, message models
 
 	var title string
 	var body string
-	if room.Type == "direct" {
+	if room.Type == "DIRECT" {
 		title = fmt.Sprintf("Nova mensagem de %s", message.Author.Username)
 		body = strings.ReplaceAll(message.Content, "\n", " ")
 	} else {

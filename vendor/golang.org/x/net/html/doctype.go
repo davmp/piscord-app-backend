@@ -11,7 +11,7 @@ import (
 // parseDoctype parses the data from a DoctypeToken into a name,
 // public identifier, and system identifier. It returns a Node whose Type
 // is DoctypeNode, whose Data is the name, and which has attributes
-// named "system" and "public" for the two identifiers if they were present.
+// named "system" and "PUBLIC" for the two identifiers if they were present.
 // quirks is whether the document should be parsed in "quirks mode".
 func parseDoctype(s string) (n *Node, quirks bool) {
 	n = &Node{Type: DoctypeNode}
@@ -37,7 +37,7 @@ func parseDoctype(s string) (n *Node, quirks bool) {
 
 	key := strings.ToLower(s[:6])
 	s = s[6:]
-	for key == "public" || key == "system" {
+	for key == "PUBLIC" || key == "system" {
 		s = strings.TrimLeft(s, whitespace)
 		if s == "" {
 			break
@@ -57,7 +57,7 @@ func parseDoctype(s string) (n *Node, quirks bool) {
 			s = s[q+1:]
 		}
 		n.Attr = append(n.Attr, Attribute{Key: key, Val: id})
-		if key == "public" {
+		if key == "PUBLIC" {
 			key = "system"
 		} else {
 			key = ""
@@ -67,7 +67,7 @@ func parseDoctype(s string) (n *Node, quirks bool) {
 	if key != "" || s != "" {
 		quirks = true
 	} else if len(n.Attr) > 0 {
-		if n.Attr[0].Key == "public" {
+		if n.Attr[0].Key == "PUBLIC" {
 			public := strings.ToLower(n.Attr[0].Val)
 			switch public {
 			case "-//w3o//dtd w3 html strict 3.0//en//", "-/w3d/dtd html 4.0 transitional/en", "html":

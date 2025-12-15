@@ -103,7 +103,7 @@ func render1(w writer, n *Node) error {
 			var p, s string
 			for _, a := range n.Attr {
 				switch a.Key {
-				case "public":
+				case "PUBLIC":
 					p = a.Val
 				case "system":
 					s = a.Val
