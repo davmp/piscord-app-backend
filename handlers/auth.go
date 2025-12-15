@@ -153,7 +153,7 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	}
 
 	var user *models.User
-	err = h.RedisService.GetCachedUser(userObjectID.Hex(), &user)
+	err = h.RedisService.GetCachedUser(userObjectID.Hex(), user)
 	if err != nil {
 		user, err = h.AuthService.GetUserByID(userObjectID)
 		if err != nil {
@@ -198,7 +198,7 @@ func (h *AuthHandler) GetProfileByID(c *gin.Context) {
 	}
 
 	var user *models.User
-	err = h.RedisService.GetCachedUser(profileObjectID.Hex(), &user)
+	err = h.RedisService.GetCachedUser(profileObjectID.Hex(), user)
 	if err != nil {
 		user, err = h.AuthService.GetUserByID(profileObjectID)
 		if err != nil {

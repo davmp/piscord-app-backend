@@ -71,13 +71,13 @@ func (rs *RedisService) CacheUserProfile(userID string, user models.User) error 
 	return rs.Client.Set(context.Background(), key, data, 0).Err() // no expiration
 }
 
-func (rs *RedisService) GetCachedUser(userID string, target any) error {
+func (rs *RedisService) GetCachedUser(userID string, user *models.User) error {
 	key := fmt.Sprintf("user:%s:profile", userID)
 	data, err := rs.Client.Get(context.Background(), key).Bytes()
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, target)
+	return json.Unmarshal(data, user)
 }
 
 func (rs *RedisService) InvalidateUserCache(userID string) error {

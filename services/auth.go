@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"log"
 	"piscord-backend/models"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -21,8 +22,14 @@ func NewAuthService(mongoService *MongoService, redisService *RedisService) *Aut
 
 func (as *AuthService) GetUserByID(userID bson.ObjectID) (*models.User, error) {
 	var user models.User
+	if as.RedisService.GetCachedUser(userID.Hex(), &user) != nil {
+		return &user, nil
+	}
+
 	err := as.MongoService.GetCollection("users").FindOne(context.Background(), bson.M{"_id": userID}).Decode(&user)
 	if err != nil {
+		as.RedisService.InvalidateUserCache(userID.Hex())
+		log.Printf("Error fetching user from MongoDB for ID: %s, Error: %v", userID.Hex(), err)
 		return nil, err
 	}
 
@@ -34,6 +41,8 @@ func (as *AuthService) GetUserByUsername(username string) (*models.User, error) 
 	var user models.User
 	err := as.MongoService.GetCollection("users").FindOne(context.Background(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
+		as.RedisService.InvalidateUserCache(user.ID.Hex())
+		log.Printf("Error fetching user from MongoDB for username: %s, Error: %v", username, err)
 		return nil, err
 	}
 
